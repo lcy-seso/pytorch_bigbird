@@ -1,16 +1,49 @@
-# This is a sample Python script.
+#!/usr/bin/env python3
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+import pdb
 
+from attention import BigbirdBlockSpareAttention
+import torch
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+batch_size = 16
+# see this link: https://github.com/google-research/bigbird/blob/5ede3184e5b9f401d1206808408b5a46584ea098/bigbird/core/flags.py#L75
+num_attention_heads = 12
+size_per_head = 512  # https://github.com/google-research/bigbird/blob/5ede3184e5b9f401d1206808408b5a46584ea098/bigbird/core/attention.py#L646
+num_rand_blocks = 3
+from_seq_length = 1024
+to_seq_length = 1024
+from_block_size = 64
+to_block_size = 64
 
+query_layer = torch.rand(batch_size, num_attention_heads, from_seq_length,
+                         size_per_head)
+key_layer = torch.rand(batch_size, num_attention_heads, to_seq_length,
+                       size_per_head)
+value_layer = torch.rand(batch_size, num_attention_heads, to_seq_length,
+                         size_per_head)
 
-# Press the green button in the gutter to run the script.
+# The values should be 1 or 0. The attention scores will effectively be
+# set to -infinity for any positions in the mask that are 0, and will be
+# unchanged for positions that are 1.
+band_mask = torch.rand(batch_size, 1, from_seq_length // from_block_size - 4,
+                       from_block_size, 3 * to_block_size)
+from_mask = torch.rand(batch_size, 1, from_seq_length, 1)
+to_mask = torch.rand(batch_size, 1, 1, to_seq_length)
+from_blocked_mask = torch.rand(batch_size, from_seq_length // from_block_size,
+                               from_block_size)
+to_blocked_mask = torch.rand(batch_size, to_seq_length // to_block_size,
+                             to_block_size)
+rand_attn = torch.rand(num_attention_heads,
+                       from_seq_length // from_block_size - 2, num_rand_blocks)
+
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    attn = BigbirdBlockSpareAttention(
+        num_attention_heads=num_attention_heads,
+        num_rand_blocks=num_rand_blocks,
+        size_per_head=size_per_head,
+        from_block_size=from_block_size,
+        to_block_size=to_block_size)
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    attn(query_layer, key_layer, value_layer, band_mask, from_mask, to_mask,
+         from_blocked_mask, to_blocked_mask, batch_size, from_seq_length,
+         to_seq_length)
